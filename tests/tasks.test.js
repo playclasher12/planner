@@ -5,18 +5,26 @@ const request = require("supertest");
 const app = require("../server");
 
 test("GET /tasks returns all tasks", async () => {
+  const createdTask = await request(app).post("/tasks").send({
+    title: "Tarefa criada para listar",
+    date: "14/10/2026"
+  });
   const response = await request(app).get("/tasks");
 
   assert.equal(response.status, 200);
-  assert.equal(response.body.length, 3);
+  assert.ok(response.body.some((task) => task.id === createdTask.body.id));
 });
 
 test("GET /tasks/:id returns a specific task", async () => {
-  const response = await request(app).get("/tasks/1");
+  const createdTask = await request(app).post("/tasks").send({
+    title: "Tarefa específica para consulta",
+    date: "14/10/2026"
+  });
+  const response = await request(app).get(`/tasks/${createdTask.body.id}`);
 
   assert.equal(response.status, 200);
-  assert.equal(response.body.id, 1);
-  assert.equal(response.body.title, "Revisar o artigo ACM Survey");
+  assert.equal(response.body.id, createdTask.body.id);
+  assert.equal(response.body.title, createdTask.body.title);
 });
 
 test("GET /tasks/:id returns 404 for non-existent task", async () => {
@@ -41,12 +49,35 @@ test("POST /tasks creates a new task", async () => {
   assert.equal(response.body.completionDate, null);
 });  
 
+test("GET /tasks?search filters titles without case sensitivity", async () => {
+  const createdTask = await request(app).post("/tasks").send({
+    title: "Organizar Workshop de Integração",
+    date: "14/10/2026"
+  });
+  const response = await request(app).get("/tasks?search=wOrKsHoP");
+
+  assert.equal(response.status, 200);
+  assert.ok(response.body.some((task) => task.id === createdTask.body.id));
+  assert.ok(response.body.every((task) => task.title.toLowerCase().includes("workshop")));
+});
+
+test("GET /tasks?search returns an empty list when there are no matches", async () => {
+  const response = await request(app).get("/tasks?search=termo-sem-correspondencia-98431");
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body, []);
+});
+
 test("DELETE /tasks/:id removes an existing task", async () => {
-  const response = await request(app).delete("/tasks/1");
+  const createdTask = await request(app).post("/tasks").send({
+    title: "Tarefa para exclusão",
+    date: "14/10/2026"
+  });
+  const response = await request(app).delete(`/tasks/${createdTask.body.id}`);
 
   assert.equal(response.status, 200);
 
-  const deletedTask = await request(app).get("/tasks/1");
+  const deletedTask = await request(app).get(`/tasks/${createdTask.body.id}`);
   assert.equal(deletedTask.status, 404);
   assert.deepEqual(deletedTask.body, { error: "Task not found" });
 });

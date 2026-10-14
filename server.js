@@ -36,14 +36,16 @@ const tasks = new Map([
     completionDate: null
   }]
 ]);
+let nextTaskId = 4;
 
 // GET /tasks - "endpoint" que recupera todas as tarefas.
 app.get("/tasks", (req, res) => {
-  const allTasks = [];
-  for (const task of tasks.values()) {
-    allTasks.push(task);
-  }
-  res.json(allTasks);
+  const searchTerm = req.query.search;
+  const matchingTasks = [...tasks.values()].filter((task) => {
+    return typeof searchTerm !== "string" ||
+      task.title.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+  res.json(matchingTasks);
 });
 
 // GET /tasks/:id - "endpoint" que recupera uma tarefa específica pelo ID.
@@ -81,7 +83,7 @@ app.post("/tasks", (req, res) => {
     return res.status(400).json({ error: "Title and date are required" });
   }
 
-  const newId = tasks.size + 1;  //TODO: Melhorar a geração de IDs para evitar colisões em um cenário real.
+  const newId = nextTaskId++;
   const newTask = {
     id: newId,
     title,
